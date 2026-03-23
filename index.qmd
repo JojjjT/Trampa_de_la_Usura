@@ -1,0 +1,1039 @@
+---
+title: "La Trampa de la Tasa de Usura"
+subtitle: "Transmisión Monetaria, NIM Bancario y Protocolos DeFi de Lending · Colombia 2025–2026"
+author:
+  - name: "Joshua Samad Trujillo Lagos"
+    affiliation: "DeFi I — Universidad Externado de Colombia"
+date: "2026-03-23"
+date-format: "D MMMM YYYY"
+lang: es
+abstract: |
+  Este documento analiza la **trampa estructural** que impone la tasa de usura colombiana sobre el sistema financiero formal. Modelamos la cadena de transmisión monetaria Banrep → TIBR → tasa activa → techo de usura, calculamos el margen neto de intermediación (NIM) usando datos públicos de la Superfinanciera, y simulamos el impacto de un portafolio de crédito de consumo ante compresión del spread. Finalmente, comparamos este sistema regulado con la curva de utilización de **Aave v3**, protocolo DeFi de lending sin techo legal, evidenciando fricciones, ineficiencias y oportunidades de arbitraje institucional.
+keywords: [tasa de usura, NIM, transmisión monetaria, DeFi, Aave, Colombia, crédito de consumo]
+bibliography: references.bib
+format:
+  html:
+    other-links:
+      - text: "Superfinanciera"
+        href: https://www.superfinanciera.gov.co
+      - text: "Banrep Tasas"
+        href: https://www.banrep.gov.co
+      - text: "Aave Docs"
+        href: https://docs.aave.com
+---
+
+```{=html}
+<!-- Metric summary cards at top -->
+<div class="metric-grid">
+  <div class="metric-card">
+    <div class="label">Tasa Banrep</div>
+    <div class="value">10.25%</div>
+    <div class="sub">EA · Mar 2026</div>
+  </div>
+  <div class="metric-card red">
+    <div class="label">Tasa de Usura</div>
+    <div class="value">25.52%</div>
+    <div class="sub">EA · Mar 2026</div>
+  </div>
+  <div class="metric-card gold">
+    <div class="label">Spread Máx.</div>
+    <div class="value">15.27 pp</div>
+    <div class="sub">Espacio NIM teórico</div>
+  </div>
+  <div class="metric-card teal">
+    <div class="label">Aave Borrow (USDC)</div>
+    <div class="value">~5.8%</div>
+    <div class="sub">Variable · Sin techo</div>
+  </div>
+</div>
+```
+
+---
+
+# Marco Regulatorio: El Techo que Todo lo Condiciona {#sec-regulatorio}
+
+```{=html}
+<span class="section-tag macro">Macro</span>
+```
+
+La **tasa de usura** en Colombia es el interés máximo permitido por ley para operaciones de crédito de consumo ordinario. Su incumplimiento configura el delito tipificado en el **Art. 305 del Código Penal** ("Usura"), haciendo que el techo no sea meramente orientativo sino jurídicamente vinculante.
+
+::: {.callout-warning}
+## Definición Legal
+La tasa de usura equivale al **1.5 × Interés Bancario Corriente** (IBC), certificado mensualmente por la Superintendencia Financiera de Colombia. Para crédito de consumo ordinario, el IBC de enero 2026 fue de **16.24% EA**, resultando en una usura de **24.36% EA**; en marzo 2026 ascendió a **25.52% EA**.
+:::
+
+La cadena regulatoria opera así:
+
+$$
+\text{IBC}_t = \frac{\sum_{i} w_i \cdot r_i^{\text{activa}}}{\sum_i w_i}
+\quad \Rightarrow \quad
+\text{Usura}_t = 1.5 \times \text{IBC}_t
+$$ {#eq-usura}
+
+donde $w_i$ es la participación de mercado del banco $i$ y $r_i^{\text{activa}}$ su tasa activa promedio en el mes anterior. Esta circularidad —la usura depende de las tasas pasadas, que a su vez no pueden superar la usura— introduce **inercia regulatoria** y **coordinación implícita** entre entidades.
+
+| Período | IBC (EA) | Tasa de Usura (EA) | Tasa Banrep |
+|---------|----------|-------------------|-------------|
+| Ene 2025 | 17.83% | 26.75% | 9.75% |
+| Jul 2025 | 16.90% | 25.35% | 9.50% |
+| Ene 2026 | 16.24% | 24.36% | 10.25% |
+| Mar 2026 | 17.01% | 25.52% | 10.25% |
+
+: Evolución de tasas de referencia. Fuente: Superfinanciera, Banrep. {#tbl-tasas}
+
+::: {.callout-note}
+## ¿Por qué sube la usura si el Banrep no sube su tasa?
+El IBC es un promedio de tasas activas bancarias del mes anterior. Si los bancos mantienen spread alto por riesgo de cartera (mora en aumento, provisiones) o costos operativos, el IBC puede subir independientemente de la política monetaria. En Q1 2026 la mora en consumo fue de ~5.2%, presionando spreads al alza.
+:::
+
+---
+
+# Modelo de Transmisión de Tasas {#sec-transmision}
+
+```{=html}
+<span class="section-tag macro">Macro · Modelo</span>
+```
+
+## La cadena Banrep → Mercado
+
+La transmisión monetaria en Colombia sigue la siguiente arquitectura:
+
+$$
+r_{\text{Banrep}} \xrightarrow{+\delta_1} r_{\text{TIBR}} \xrightarrow{+\delta_2} r_{\text{activa}} \xrightarrow{\leq \text{Usura}} r_{\text{cobrada}}
+$$
+
+**Componentes del spread:**
+
+$$
+r_{\text{activa}} = r_{\text{Banrep}} + \underbrace{\delta_{\text{fondeo}}}_{\text{prima liquidez}} + \underbrace{\delta_{\text{riesgo}}}_{\text{PD} \times \text{LGD}} + \underbrace{\delta_{\text{operativo}}}_{\text{OPEX/activos}} + \underbrace{\pi}_{\text{margen neto}}
+$$ {#eq-tasa-activa}
+
+donde $\text{PD}$ es la probabilidad de default del segmento y $\text{LGD}$ la pérdida dado el default (Loss Given Default).
+
+## Simulador Interactivo: Cadena de Transmisión
+
+El widget a continuación permite ajustar cada componente del spread y ver cómo se acerca o aleja del techo de usura:
+
+```{ojs}
+//| label: fig-transmision
+//| fig-cap: "Simulador de cadena de transmisión monetaria. Ajuste los sliders para ver el impacto sobre el spread disponible."
+//| echo: false
+
+viewof banrep = Inputs.range([5, 15], {
+  value: 10.25,
+  step: 0.25,
+  label: "① Tasa Banrep (EA %)"
+})
+
+viewof delta_fondeo = Inputs.range([0.5, 4.0], {
+  value: 1.5,
+  step: 0.1,
+  label: "② Prima de fondeo / TIBR spread (pp)"
+})
+
+viewof delta_riesgo = Inputs.range([1.0, 8.0], {
+  value: 4.5,
+  step: 0.25,
+  label: "③ Prima de riesgo crediticio (pp)"
+})
+
+viewof delta_opex = Inputs.range([0.5, 4.0], {
+  value: 2.8,
+  step: 0.1,
+  label: "④ Costo operativo / ROE mínimo (pp)"
+})
+
+viewof usura_slider = Inputs.range([18, 32], {
+  value: 25.52,
+  step: 0.01,
+  label: "⑤ Tasa de Usura vigente (EA %)"
+})
+```
+
+```{ojs}
+//| echo: false
+// Calculations
+tibr = banrep + 0.10
+r_activa_min = tibr + delta_fondeo + delta_riesgo + delta_opex
+margen_disponible = usura_slider - r_activa_min
+viabilidad = margen_disponible >= 0
+
+// Summary display
+html`
+<div class="ojs-widget-box">
+  <h4>📊 Resultado de la Cadena</h4>
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">TIBR estimada</div>
+      <div class="value">${tibr.toFixed(2)}%</div>
+      <div class="sub">Banrep + 10 bps</div>
+    </div>
+    <div class="metric-card gold">
+      <div class="label">Tasa activa mínima</div>
+      <div class="value">${r_activa_min.toFixed(2)}%</div>
+      <div class="sub">Break-even bank</div>
+    </div>
+    <div class="metric-card ${viabilidad ? 'teal' : 'red'}">
+      <div class="label">Margen disponible</div>
+      <div class="value">${margen_disponible.toFixed(2)} pp</div>
+      <div class="sub">${viabilidad ? '✓ Viable' : '✗ RACIONAMIENTO'}</div>
+    </div>
+    <div class="metric-card red">
+      <div class="label">Tasa de Usura</div>
+      <div class="value">${usura_slider.toFixed(2)}%</div>
+      <div class="sub">Techo legal</div>
+    </div>
+  </div>
+  ${!viabilidad ? `<div style="background:#fdf0ef;border-left:4px solid #c0392b;padding:0.8rem 1rem;margin-top:1rem;border-radius:0 4px 4px 0;font-family:'IBM Plex Mono',monospace;font-size:0.85rem;"><strong>⚠ TRAMPA ACTIVADA:</strong> Con estos parámetros el crédito de consumo no es rentable bajo el techo legal. El banco raciona crédito o traslada cartera a segmentos sin techo (microcrédito, tarjetas especiales).</div>` : ''}
+</div>
+`
+```
+
+```{ojs}
+//| echo: false
+//| fig-cap: "Descomposición del spread bancario vs techo de usura"
+
+// Build waterfall chart data
+components = [
+  { name: "Banrep", start: 0, value: banrep, color: "#1a2744" },
+  { name: "TIBR Δ", start: banrep, value: 0.10, color: "#2e4a8a" },
+  { name: "Fondeo", start: tibr, value: delta_fondeo, color: "#b8860b" },
+  { name: "Riesgo", start: tibr + delta_fondeo, value: delta_riesgo, color: "#c0392b" },
+  { name: "OPEX+ROE", start: tibr + delta_fondeo + delta_riesgo, value: delta_opex, color: "#7f8c8d" },
+]
+
+Plot.plot({
+  width: 680,
+  height: 340,
+  marginLeft: 70,
+  marginBottom: 50,
+  style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 },
+  x: { label: "Componente del spread →", tickRotate: -20 },
+  y: { label: "Tasa EA (%)", grid: true, domain: [0, Math.max(usura_slider + 2, r_activa_min + 3)] },
+  marks: [
+    // Stacked bars
+    Plot.barY(components, {
+      x: "name",
+      y1: "start",
+      y2: d => d.start + d.value,
+      fill: "color",
+      title: d => `${d.name}: +${d.value.toFixed(2)} pp → ${(d.start + d.value).toFixed(2)}%`
+    }),
+    // Usura ceiling line
+    Plot.ruleY([usura_slider], {
+      stroke: "#c0392b",
+      strokeWidth: 2.5,
+      strokeDasharray: "6 3"
+    }),
+    Plot.text([{ x: "OPEX+ROE", y: usura_slider }], {
+      text: [`Usura: ${usura_slider.toFixed(2)}%`],
+      dy: -8,
+      fill: "#c0392b",
+      fontWeight: 600,
+      fontSize: 11
+    }),
+    // Break-even line
+    Plot.ruleY([r_activa_min], {
+      stroke: "#0d9488",
+      strokeWidth: 1.5,
+      strokeDasharray: "3 3"
+    }),
+  ]
+})
+```
+
+## Elasticidad de la Transmisión
+
+La transmisión incompleta de la política monetaria al crédito de consumo se puede estimar con:
+
+$$
+\varepsilon_{r,\text{Banrep}} = \frac{\Delta r_{\text{activa}}}{\Delta r_{\text{Banrep}}} \in [0.4,\, 0.7]
+$$
+
+Estudios del Banco de la República documentan una transmisión de **40–70 céntimos por cada peso** de cambio en tasa de política para crédito de consumo, con rezago de 3–6 meses. La usura actúa como un **techo asimétrico**: limita la transmisión al alza pero no la evita a la baja.
+
+---
+
+# Margen Neto de Intermediación (NIM) Bancario {#sec-nim}
+
+```{=html}
+<span class="section-tag banking">Banking · NIM</span>
+```
+
+## Definición y Metodología
+
+El **Net Interest Margin** mide la rentabilidad del negocio de intermediación:
+
+$$
+\text{NIM} = \frac{\text{Ingresos por intereses} - \text{Gastos por intereses}}{\text{Activos productivos promedio}} \times 100
+$$ {#eq-nim}
+
+Usando datos públicos de la Superfinanciera (estados financieros trimestrales bajo NIIF), aproximamos los componentes:
+
+$$
+\text{NIM}_{\text{ajustado}} = \underbrace{r_{\text{activa}}^w}_{\text{rendimiento cartera}} - \underbrace{r_{\text{pasiva}}^w}_{\text{costo fondeo}} - \underbrace{\frac{\text{Provisiones}}{\text{Cartera}}}_{\text{costo riesgo}} - \underbrace{\frac{\text{OPEX}}{\text{Activos}}}_{\text{eficiencia}}
+$$ {#eq-nim-adj}
+
+## Datos de Referencia: Bancolombia vs Davivienda (2025)
+
+| Indicador | Bancolombia | Davivienda | Sector |
+|-----------|-------------|------------|--------|
+| NIM bruto (%) | 7.8 | 7.2 | 6.9 |
+| Costo de fondeo (%) | 8.4 | 8.9 | 8.6 |
+| Tasa activa promedio consumo (%) | 21.3 | 22.1 | 21.8 |
+| Ratio mora (+90 días, %) | 4.8 | 5.6 | 5.4 |
+| NIM ajustado por riesgo (%) | 3.1 | 2.4 | 2.7 |
+| Eficiencia operativa (CIR, %) | 51.2 | 56.3 | 54.8 |
+
+: Indicadores financieros estimados 2025. Fuente: Superfinanciera, estimaciones propias. {#tbl-nim}
+
+## Calculadora de NIM — Simulación Interactiva
+
+```{ojs}
+//| label: fig-nim-sim
+//| fig-cap: "Simulador de NIM. Varíe parámetros del portafolio de consumo para estimar el margen ajustado."
+//| echo: false
+
+viewof tasa_activa_nim = Inputs.range([15, 25.52], {
+  value: 21.5,
+  step: 0.1,
+  label: "Tasa activa consumo (EA %)"
+})
+
+viewof costo_fondeo_cdt = Inputs.range([6, 14], {
+  value: 8.6,
+  step: 0.1,
+  label: "Costo de fondeo CDT (EA %)"
+})
+
+viewof mora_ratio = Inputs.range([2, 12], {
+  value: 5.2,
+  step: 0.1,
+  label: "Índice de mora +90 días (%)"
+})
+
+viewof lgd = Inputs.range([30, 80], {
+  value: 55,
+  step: 1,
+  label: "LGD — Pérdida dado default (%)"
+})
+
+viewof cir_ratio = Inputs.range([40, 70], {
+  value: 53,
+  step: 0.5,
+  label: "Cost-to-Income Ratio — CIR (%)"
+})
+```
+
+```{ojs}
+//| echo: false
+// NIM computation
+nim_bruto = tasa_activa_nim - costo_fondeo_cdt
+costo_riesgo_est = (mora_ratio / 100) * (lgd / 100) * 100
+opex_sobre_activos = (cir_ratio / 100) * nim_bruto
+nim_ajustado = nim_bruto - costo_riesgo_est - opex_sobre_activos
+roe_implicito = nim_ajustado * 8.5  // leverage factor aprox
+
+html`
+<div class="ojs-widget-box">
+  <h4>📈 Descomposición del NIM</h4>
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="label">NIM Bruto</div>
+      <div class="value">${nim_bruto.toFixed(2)}%</div>
+      <div class="sub">Activo − Fondeo</div>
+    </div>
+    <div class="metric-card red">
+      <div class="label">Costo de Riesgo</div>
+      <div class="value">${costo_riesgo_est.toFixed(2)} pp</div>
+      <div class="sub">PD × LGD</div>
+    </div>
+    <div class="metric-card gold">
+      <div class="label">OPEX implícito</div>
+      <div class="value">${opex_sobre_activos.toFixed(2)} pp</div>
+      <div class="sub">CIR × NIM bruto</div>
+    </div>
+    <div class="metric-card ${nim_ajustado > 0 ? 'teal' : 'red'}">
+      <div class="label">NIM Ajustado</div>
+      <div class="value">${nim_ajustado.toFixed(2)}%</div>
+      <div class="sub">${nim_ajustado > 0 ? 'ROE ≈ ' + roe_implicito.toFixed(1) + '%' : '⚠ No rentable'}</div>
+    </div>
+  </div>
+  <div style="margin-top:1rem;padding:0.8rem 1rem;background:#f4f2ec;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:0.82rem;line-height:1.8;">
+    <strong>NIM = </strong>${tasa_activa_nim.toFixed(2)}% − ${costo_fondeo_cdt.toFixed(2)}% − ${costo_riesgo_est.toFixed(2)} pp − ${opex_sobre_activos.toFixed(2)} pp = <strong>${nim_ajustado.toFixed(3)}%</strong>
+  </div>
+</div>
+`
+```
+
+```{ojs}
+//| echo: false
+//| fig-cap: "Sensibilidad del NIM ajustado ante variaciones en tasa activa y mora"
+
+// Sensitivity surface: tasa_activa (x) vs mora (color lines)
+mora_scenarios = [3, 5, 7, 10]
+tasa_range = Array.from({length: 40}, (_, i) => 14 + i * 0.3)
+
+surface_data = mora_scenarios.flatMap(m =>
+  tasa_range.map(ta => ({
+    tasa: ta,
+    mora_label: `Mora ${m}%`,
+    nim: ta - costo_fondeo_cdt - (m/100)*(lgd/100)*100 - (cir_ratio/100)*(ta - costo_fondeo_cdt)
+  }))
+)
+
+Plot.plot({
+  width: 680,
+  height: 320,
+  marginLeft: 55,
+  marginBottom: 50,
+  style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 },
+  color: { legend: true, scheme: "tableau10" },
+  x: { label: "Tasa activa consumo (EA %) →", grid: true },
+  y: { label: "NIM ajustado (%)", grid: true },
+  marks: [
+    Plot.line(surface_data, {
+      x: "tasa",
+      y: "nim",
+      stroke: "mora_label",
+      strokeWidth: 2,
+      title: d => `Mora ${d.mora_label} | Tasa ${d.tasa.toFixed(1)}% → NIM ${d.nim.toFixed(2)}%`
+    }),
+    Plot.ruleY([0], { stroke: "#c0392b", strokeWidth: 1.5, strokeDasharray: "4 4" }),
+    Plot.ruleX([usura_slider], { stroke: "#c0392b", strokeWidth: 2, strokeDasharray: "6 3" }),
+    Plot.text([{ tasa: usura_slider - 0.3, nim: 5 }], {
+      text: [`Usura\n${usura_slider.toFixed(1)}%`],
+      fill: "#c0392b", fontSize: 10, textAnchor: "end"
+    })
+  ]
+})
+```
+
+::: {.callout-note}
+## Interpretación del NIM ajustado
+Con mora del 10% y LGD del 55%, el costo de riesgo implícito es **5.5 pp**. Si el banco fondea a 8.6% y cobra 21.5%, el NIM bruto es 12.9 pp. Descontando riesgo (5.5 pp) y OPEX (6.8 pp, con CIR=53%), el NIM ajustado es **0.6%** — margen exiguo que explica el racionamiento de crédito a poblaciones de mayor riesgo.
+:::
+
+---
+
+# Simulación de Portafolio de Consumo bajo Compresión de Usura {#sec-portafolio}
+
+```{=html}
+<span class="section-tag sim">Simulación</span>
+```
+
+## Estructura del Portafolio Típico
+
+Un portafolio de crédito de consumo ordinario en Colombia tiene típicamente la siguiente composición:
+
+| Segmento | Participación | Tasa cobrada | PD estimada | LGD |
+|----------|--------------|--------------|-------------|-----|
+| Libre inversión nómina | 35% | 18–20% | 3.5% | 40% |
+| Libre inversión sin nómina | 30% | 22–25% | 7.2% | 58% |
+| Vehículo | 15% | 16–19% | 4.1% | 35% |
+| Libranza gobierno | 12% | 14–17% | 1.8% | 30% |
+| Tarjeta de crédito | 8% | 24–25.52% | 9.8% | 65% |
+
+: Composición típica portafolio consumo. Fuente: Estimaciones propias con base en datos Superfinanciera. {#tbl-portafolio}
+
+## Simulador: Impacto de Baja en Usura sobre Rentabilidad de Portafolio
+
+```{ojs}
+//| label: fig-portfolio-sim
+//| fig-cap: "Simulación de impacto en portafolio ante caída en la tasa de usura"
+//| echo: false
+
+viewof usura_nueva = Inputs.range([16, 26], {
+  value: 25.52,
+  step: 0.01,
+  label: "Nueva tasa de usura (EA %)"
+})
+
+viewof cdt_rate = Inputs.range([6, 13], {
+  value: 8.8,
+  step: 0.1,
+  label: "Tasa CDT fondeo (EA %)"
+})
+
+viewof encaje = Inputs.range([9, 15], {
+  value: 11,
+  step: 0.25,
+  label: "Encaje requerido (%)"
+})
+
+viewof portafolio_size = Inputs.range([100, 5000], {
+  value: 1000,
+  step: 50,
+  label: "Tamaño portafolio (COP mil millones)"
+})
+```
+
+```{ojs}
+//| echo: false
+
+// Portfolio segments definition
+segments = [
+  { name: "L.I. Nómina",     w: 0.35, tasa_base: 19.0, pd: 0.035, lgd: 0.40, tasa_min: 16.0 },
+  { name: "L.I. Sin nómina", w: 0.30, tasa_base: 23.5, pd: 0.072, lgd: 0.58, tasa_min: 18.0 },
+  { name: "Vehículo",        w: 0.15, tasa_base: 17.5, pd: 0.041, lgd: 0.35, tasa_min: 14.0 },
+  { name: "Libranza Gov.",   w: 0.12, tasa_base: 15.5, pd: 0.018, lgd: 0.30, tasa_min: 12.0 },
+  { name: "Tarjeta crédito", w: 0.08, tasa_base: 25.0, pd: 0.098, lgd: 0.65, tasa_min: 22.0 },
+]
+
+// Effective rate: min(tasa_base, usura_nueva)
+segs_computed = segments.map(s => {
+  const r_eff = Math.min(s.tasa_base, usura_nueva)
+  const spread = r_eff - cdt_rate * (1 + encaje/100)
+  const costo_riesgo = s.pd * s.lgd * 100
+  const nim_seg = spread - costo_riesgo - 3.2  // 3.2pp OPEX flat
+  const ingreso = (portafolio_size * s.w) * (r_eff / 100)
+  const es_racionado = usura_nueva < s.tasa_base && nim_seg < 0
+  return { ...s, r_eff, spread, nim_seg, ingreso, es_racionado }
+})
+
+nim_pond = segs_computed.reduce((acc, s) => acc + s.w * s.nim_seg, 0)
+ingreso_total = segs_computed.reduce((acc, s) => acc + s.ingreso, 0)
+n_racionados = segs_computed.filter(s => s.es_racionado).length
+
+// Baseline at 25.52%
+segs_base = segments.map(s => {
+  const r_eff_b = Math.min(s.tasa_base, 25.52)
+  const spread_b = r_eff_b - 8.8 * (1 + 11/100)
+  const nim_b = spread_b - s.pd * s.lgd * 100 - 3.2
+  return { ...s, nim_b }
+})
+nim_base = segs_base.reduce((acc, s) => acc + s.w * s.nim_b, 0)
+delta_nim = nim_pond - nim_base
+
+html`
+<div class="ojs-widget-box">
+  <h4>📉 Impacto del Portafolio — Usura ${usura_nueva.toFixed(2)}%</h4>
+  <div class="metric-grid">
+    <div class="metric-card ${nim_pond >= 0 ? 'teal' : 'red'}">
+      <div class="label">NIM Pond. Portafolio</div>
+      <div class="value">${nim_pond.toFixed(2)}%</div>
+      <div class="sub">vs base 25.52%</div>
+    </div>
+    <div class="metric-card ${delta_nim >= 0 ? 'teal' : 'red'}">
+      <div class="label">Δ NIM vs baseline</div>
+      <div class="value">${delta_nim >= 0 ? '+' : ''}${delta_nim.toFixed(2)} pp</div>
+      <div class="sub">impacto compresión</div>
+    </div>
+    <div class="metric-card gold">
+      <div class="label">Ingreso anual</div>
+      <div class="value">$${(ingreso_total).toFixed(0)}MM</div>
+      <div class="sub">COP mil millones</div>
+    </div>
+    <div class="metric-card ${n_racionados > 0 ? 'red' : 'teal'}">
+      <div class="label">Segmentos racionados</div>
+      <div class="value">${n_racionados} / ${segments.length}</div>
+      <div class="sub">${n_racionados > 0 ? 'Exclusión financiera' : 'Todos viables'}</div>
+    </div>
+  </div>
+</div>
+`
+```
+
+```{ojs}
+//| echo: false
+//| fig-cap: "NIM por segmento de cartera bajo la tasa de usura seleccionada"
+
+Plot.plot({
+  width: 680,
+  height: 320,
+  marginLeft: 110,
+  marginBottom: 50,
+  style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 },
+  x: { label: "NIM ajustado por segmento (%)", grid: true },
+  y: { label: null },
+  color: { domain: [false, true], range: ["#0d9488", "#c0392b"] },
+  marks: [
+    Plot.barX(segs_computed, {
+      y: "name",
+      x: "nim_seg",
+      fill: "es_racionado",
+      title: d => `${d.name}\nTasa efectiva: ${d.r_eff.toFixed(2)}%\nNIM: ${d.nim_seg.toFixed(2)}%\n${d.es_racionado ? '⚠ RACIONADO' : '✓ Viable'}`
+    }),
+    Plot.ruleX([0], { stroke: "#c0392b", strokeWidth: 2 }),
+    Plot.text(segs_computed, {
+      y: "name",
+      x: d => d.nim_seg + (d.nim_seg >= 0 ? 0.1 : -0.1),
+      text: d => `${d.nim_seg.toFixed(2)}%`,
+      textAnchor: d => d.nim_seg >= 0 ? "start" : "end",
+      fontSize: 10
+    })
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+//| fig-cap: "Evolución del NIM ponderado del portafolio ante distintos niveles de tasa de usura"
+
+usura_range = Array.from({length: 60}, (_, i) => 16 + i * 0.17)
+
+nim_curve = usura_range.map(u => {
+  const nim_u = segments.reduce((acc, s) => {
+    const r_eff = Math.min(s.tasa_base, u)
+    const spread = r_eff - cdt_rate * (1 + encaje/100)
+    const nim_s = spread - s.pd * s.lgd * 100 - 3.2
+    return acc + s.w * nim_s
+  }, 0)
+  return { usura: u, nim: nim_u }
+})
+
+Plot.plot({
+  width: 680,
+  height: 300,
+  marginLeft: 55,
+  marginBottom: 50,
+  style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 },
+  x: { label: "Tasa de Usura (EA %) →", grid: true },
+  y: { label: "NIM ponderado portafolio (%)", grid: true },
+  marks: [
+    Plot.areaY(nim_curve, {
+      x: "usura",
+      y: "nim",
+      fill: d => d.nim >= 0 ? "#0d944820" : "#c0392b20",
+      curve: "monotone-x"
+    }),
+    Plot.line(nim_curve, {
+      x: "usura",
+      y: "nim",
+      stroke: d => d.nim >= 0 ? "#0d9488" : "#c0392b",
+      strokeWidth: 2.5,
+      curve: "monotone-x"
+    }),
+    Plot.ruleY([0], { stroke: "#c0392b", strokeWidth: 1.5 }),
+    Plot.ruleX([usura_nueva], {
+      stroke: "#1a2744",
+      strokeWidth: 2,
+      strokeDasharray: "6 3"
+    }),
+    Plot.text([{ usura: usura_nueva, nim: -1 }], {
+      text: [`▲ Usura\nactual`],
+      fill: "#1a2744", fontSize: 10
+    })
+  ]
+})
+```
+
+::: {.callout-warning}
+## La Trampa en Acción
+Cuando la tasa de usura cae por debajo de **~21.5% EA** (con costo de fondeo CDT en 8.8%), los segmentos de mayor riesgo —libre inversión sin nómina y tarjetas— se vuelven no rentables. El banco **no puede cobrar más** (techo legal) pero su **costo de fondeo no baja** (los CDT compiten en mercado libre). Resultado: **racionamiento crediticio** y migración de demanda a crédito informal (gota a gota), que opera fuera del techo legal y cobra tasas de 300–1.200% EA.
+:::
+
+---
+
+# Componente DeFi: Curva de Utilización de Aave v3 {#sec-defi}
+
+```{=html}
+<span class="section-tag defi">DeFi · Aave v3</span>
+```
+
+## El Modelo de Tasa de Interés de Aave
+
+Aave v3 implementa un modelo de **tasa de interés variable basado en la utilización** del pool. No existe techo legal: la tasa se determina algorítmicamente para equilibrar oferta y demanda de liquidez.
+
+$$
+U = \frac{\text{Deuda Total}}{\text{Liquidez Total} + \text{Deuda Total}}
+$$ {#eq-util}
+
+La tasa de borrow se define por tramos:
+
+$$
+r_{\text{borrow}}(U) = \begin{cases}
+r_{\text{base}} + \dfrac{U}{U_{\text{opt}}} \cdot R_{\text{slope1}} & \text{si } U \leq U_{\text{opt}} \\[10pt]
+r_{\text{base}} + R_{\text{slope1}} + \dfrac{U - U_{\text{opt}}}{1 - U_{\text{opt}}} \cdot R_{\text{slope2}} & \text{si } U > U_{\text{opt}}
+\end{cases}
+$$ {#eq-aave-rate}
+
+La tasa de supply (lo que gana el proveedor de liquidez) es:
+
+$$
+r_{\text{supply}}(U) = r_{\text{borrow}}(U) \times U \times (1 - \text{reserveFactor})
+$$ {#eq-aave-supply}
+
+## Simulador: Curva de Utilización vs Sistema Colombiano
+
+```{ojs}
+//| label: fig-aave-sim
+//| fig-cap: "Simulador comparativo: Curva de utilización Aave vs sistema con tasa de usura"
+//| echo: false
+
+// Aave v3 USDC parameters (Ethereum mainnet reference)
+viewof u_opt = Inputs.range([60, 95], {
+  value: 90,
+  step: 1,
+  label: "Utilización óptima Uₒₚₜ (%)"
+})
+
+viewof r_base_aave = Inputs.range([0, 2], {
+  value: 0,
+  step: 0.1,
+  label: "Tasa base Aave — r_base (%)"
+})
+
+viewof slope1 = Inputs.range([1, 15], {
+  value: 5,
+  step: 0.25,
+  label: "Slope 1 — R_slope1 (%) [U < Uₒₚₜ]"
+})
+
+viewof slope2 = Inputs.range([20, 200], {
+  value: 80,
+  step: 5,
+  label: "Slope 2 — R_slope2 (%) [U > Uₒₚₜ]"
+})
+
+viewof reserve_factor = Inputs.range([5, 30], {
+  value: 10,
+  step: 1,
+  label: "Reserve Factor Aave (%)"
+})
+```
+
+```{ojs}
+//| echo: false
+// Generate Aave utilization curve
+u_range = Array.from({ length: 200 }, (_, i) => i / 200)
+u_opt_dec = u_opt / 100
+
+aave_curve = u_range.map(u => {
+  let r_borrow
+  if (u <= u_opt_dec) {
+    r_borrow = r_base_aave + (u / u_opt_dec) * slope1
+  } else {
+    r_borrow = r_base_aave + slope1 + ((u - u_opt_dec) / (1 - u_opt_dec)) * slope2
+  }
+  const r_supply = r_borrow * u * (1 - reserve_factor / 100)
+  return {
+    u: u * 100,
+    r_borrow,
+    r_supply,
+    spread_aave: r_borrow - r_supply
+  }
+})
+
+// Colombia reference line at usura_nueva
+col_line = [{ u: 0, rate: usura_nueva }, { u: 100, rate: usura_nueva }]
+col_fondeo_line = [{ u: 0, rate: cdt_rate }, { u: 100, rate: cdt_rate }]
+
+Plot.plot({
+  width: 700,
+  height: 380,
+  marginLeft: 55,
+  marginBottom: 50,
+  style: { fontFamily: "'IBM Plex Mono', monospace", fontSize: 11 },
+  x: { label: "Utilización del Pool (%)", grid: true, domain: [0, 100] },
+  y: { label: "Tasa anual (%)", grid: true },
+  marks: [
+    // Aave borrow rate
+    Plot.line(aave_curve, {
+      x: "u", y: "r_borrow",
+      stroke: "#0d9488", strokeWidth: 2.5,
+    }),
+    // Aave supply rate (earn)
+    Plot.line(aave_curve, {
+      x: "u", y: "r_supply",
+      stroke: "#0d9488", strokeWidth: 1.5, strokeDasharray: "4 2"
+    }),
+    // Aave spread area
+    Plot.areaY(aave_curve, {
+      x: "u", y1: "r_supply", y2: "r_borrow",
+      fill: "#0d948815"
+    }),
+    // Colombia usura ceiling
+    Plot.line(col_line, {
+      x: "u", y: "rate",
+      stroke: "#c0392b", strokeWidth: 2, strokeDasharray: "6 4"
+    }),
+    // Colombia fondeo floor
+    Plot.line(col_fondeo_line, {
+      x: "u", y: "rate",
+      stroke: "#b8860b", strokeWidth: 1.5, strokeDasharray: "3 3"
+    }),
+    // Optimal utilization marker
+    Plot.ruleX([u_opt], {
+      stroke: "#0d9488", strokeWidth: 1.5, strokeDasharray: "3 3"
+    }),
+    // Labels
+    Plot.text([{ u: 95, r: usura_nueva + 0.5 }], {
+      x: "u", y: "r",
+      text: [`Usura CO: ${usura_nueva.toFixed(1)}%`],
+      fill: "#c0392b", fontSize: 10, textAnchor: "end"
+    }),
+    Plot.text([{ u: 95, r: cdt_rate + 0.5 }], {
+      x: "u", y: "r",
+      text: [`Fondeo CDT: ${cdt_rate.toFixed(1)}%`],
+      fill: "#b8860b", fontSize: 10, textAnchor: "end"
+    }),
+    Plot.text([{ u: 55, r: r_base_aave + slope1 * 0.6 + 1 }], {
+      x: "u", y: "r",
+      text: ["Aave Borrow Rate"],
+      fill: "#0d9488", fontSize: 10
+    }),
+    Plot.text([{ u: 55, r: (r_base_aave + slope1 * 0.6) * 0.55 * 0.5 + 0.5 }], {
+      x: "u", y: "r",
+      text: ["Aave Supply (earn)"],
+      fill: "#0d9488", fontSize: 10
+    }),
+  ]
+})
+```
+
+```{ojs}
+//| echo: false
+// Comparative table at key utilization levels
+key_utils = [30, 50, 70, 80, 90, 95, 99]
+
+compare_table = key_utils.map(u_pct => {
+  const u = u_pct / 100
+  let r_borrow_a
+  if (u <= u_opt_dec) {
+    r_borrow_a = r_base_aave + (u / u_opt_dec) * slope1
+  } else {
+    r_borrow_a = r_base_aave + slope1 + ((u - u_opt_dec) / (1 - u_opt_dec)) * slope2
+  }
+  const r_supply_a = r_borrow_a * u * (1 - reserve_factor / 100)
+  const vs_usura = r_borrow_a <= usura_nueva ? "✓ < Usura" : "✗ > Usura"
+  return {
+    "Utiliz.": `${u_pct}%`,
+    "Borrow (%)": r_borrow_a.toFixed(2),
+    "Supply (%)": r_supply_a.toFixed(2),
+    "Spread pp": (r_borrow_a - r_supply_a).toFixed(2),
+    "vs Usura CO": vs_usura
+  }
+})
+
+Inputs.table(compare_table, {
+  header: {
+    "Utiliz.": "Utilización",
+    "Borrow (%)": "Tasa Borrow",
+    "Supply (%)": "Tasa Supply",
+    "Spread pp": "Spread (pp)",
+    "vs Usura CO": "vs Usura CO"
+  }
+})
+```
+
+## Análisis Comparativo: Aave vs Sistema Colombiano
+
+```{ojs}
+//| echo: false
+// Current Aave rate at ~85% utilization (typical mainnet USDC)
+u_actual_aave = 85
+u_a = u_actual_aave / 100
+r_borrow_actual = u_a <= u_opt_dec
+  ? r_base_aave + (u_a / u_opt_dec) * slope1
+  : r_base_aave + slope1 + ((u_a - u_opt_dec) / (1 - u_opt_dec)) * slope2
+r_supply_actual = r_borrow_actual * u_a * (1 - reserve_factor / 100)
+
+html`
+<div class="ojs-widget-box">
+  <h4>⚡ Comparativo Aave vs Banca Colombiana (Consumo)</h4>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1rem;">
+    <div style="border-left:4px solid #0d9488;padding-left:1rem;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.1rem;color:#0d9488;margin-bottom:0.5rem;">🔗 Aave v3 (DeFi)</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.82rem;line-height:2;">
+        Borrow rate: <strong>${r_borrow_actual.toFixed(2)}%</strong> (U=${u_actual_aave}%)<br>
+        Supply rate: <strong>${r_supply_actual.toFixed(2)}%</strong><br>
+        Spread: <strong>${(r_borrow_actual - r_supply_actual).toFixed(2)} pp</strong><br>
+        Techo legal: <strong>❌ No existe</strong><br>
+        Colateral: <strong>Overcollateralizado</strong><br>
+        Riesgo liquidez: <strong>Curva algorítmica</strong>
+      </div>
+    </div>
+    <div style="border-left:4px solid #1a2744;padding-left:1rem;">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1.1rem;color:#1a2744;margin-bottom:0.5rem;">🏦 Banca CO (Consumo)</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.82rem;line-height:2;">
+        Tasa activa: <strong>~${tasa_activa_nim.toFixed(2)}%</strong> EA<br>
+        Fondeo CDT: <strong>${cdt_rate.toFixed(2)}%</strong> EA<br>
+        Spread: <strong>${(tasa_activa_nim - cdt_rate).toFixed(2)} pp</strong><br>
+        Techo legal: <strong>✓ Usura ${usura_nueva.toFixed(2)}%</strong><br>
+        Colateral: <strong>Variable / sin colateral</strong><br>
+        Riesgo liquidez: <strong>Regulado (encaje ${encaje}%)</strong>
+      </div>
+    </div>
+  </div>
+  <div style="background:#f4f2ec;padding:0.8rem 1rem;border-radius:4px;font-size:0.83rem;font-family:'Libre Baskerville',serif;">
+    <strong>Key insight:</strong> En Aave, cuando la utilización supera U<sub>opt</sub>=${u_opt}%, la tasa de borrow escala agresivamente (slope2=${slope2}%), desincentivando nuevo borrowing y atrayendo más liquidez. Este mecanismo <em>de mercado</em> reemplaza el techo legal. La ausencia de usura no implica tasas infinitas: el equilibrio algorítmico las ancla. La gran diferencia: Aave requiere <strong>overcollateralización</strong>, mientras la banca CO otorga crédito sin colateral a estratos bajos.
+  </div>
+</div>
+`
+```
+
+---
+
+# Síntesis: La Trampa y sus Implicaciones {#sec-sintesis}
+
+```{=html}
+<span class="section-tag sim">Conclusiones</span>
+```
+
+## El Mecanismo de la Trampa
+
+```{ojs}
+//| echo: false
+
+html`
+<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:1.5rem;margin:1rem 0;">
+<svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;font-family:'IBM Plex Mono',monospace;">
+  <!-- Banrep box -->
+  <rect x="10" y="65" width="110" height="50" rx="3" fill="#1a2744"/>
+  <text x="65" y="86" text-anchor="middle" fill="white" font-size="10" font-weight="bold">BANREP</text>
+  <text x="65" y="100" text-anchor="middle" fill="#93c5fd" font-size="11">${banrep.toFixed(2)}%</text>
+  <text x="65" y="112" text-anchor="middle" fill="#93c5fd" font-size="9">Política monetaria</text>
+  <!-- Arrow -->
+  <line x1="120" y1="90" x2="150" y2="90" stroke="#b8860b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="135" y="82" text-anchor="middle" fill="#b8860b" font-size="8">+10bp</text>
+  <!-- TIBR box -->
+  <rect x="150" y="65" width="100" height="50" rx="3" fill="#2e4a8a"/>
+  <text x="200" y="86" text-anchor="middle" fill="white" font-size="10" font-weight="bold">TIBR</text>
+  <text x="200" y="100" text-anchor="middle" fill="#bfdbfe" font-size="11">${tibr.toFixed(2)}%</text>
+  <!-- Arrow -->
+  <line x1="250" y1="90" x2="280" y2="90" stroke="#b8860b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="265" y="82" text-anchor="middle" fill="#b8860b" font-size="8">+spread</text>
+  <!-- Bank rate box -->
+  <rect x="280" y="65" width="120" height="50" rx="3" fill="#b8860b"/>
+  <text x="340" y="84" text-anchor="middle" fill="white" font-size="9" font-weight="bold">TASA ACTIVA</text>
+  <text x="340" y="98" text-anchor="middle" fill="white" font-size="11">${r_activa_min.toFixed(2)}%</text>
+  <text x="340" y="110" text-anchor="middle" fill="white" font-size="8">Break-even mín.</text>
+  <!-- Arrow -->
+  <line x1="400" y1="90" x2="430" y2="90" stroke="#c0392b" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="415" y="82" text-anchor="middle" fill="#c0392b" font-size="8">≤ usura</text>
+  <!-- Usura ceiling -->
+  <rect x="430" y="45" width="120" height="90" rx="3" fill="#fdf0ef" stroke="#c0392b" stroke-width="2.5" stroke-dasharray="6 3"/>
+  <text x="490" y="68" text-anchor="middle" fill="#c0392b" font-size="9" font-weight="bold">⚖ USURA LEGAL</text>
+  <text x="490" y="85" text-anchor="middle" fill="#c0392b" font-size="13" font-weight="bold">${usura_nueva.toFixed(2)}%</text>
+  <text x="490" y="100" text-anchor="middle" fill="#c0392b" font-size="8">Art. 305 C.P.</text>
+  <!-- Racionamiento -->
+  <rect x="570" y="55" width="120" height="70" rx="3" fill="${margen_disponible >= 0 ? '#effaf8' : '#fdf0ef'}" stroke="${margen_disponible >= 0 ? '#0d9488' : '#c0392b'}" stroke-width="2"/>
+  <text x="630" y="78" text-anchor="middle" fill="${margen_disponible >= 0 ? '#0d9488' : '#c0392b'}" font-size="9" font-weight="bold">${margen_disponible >= 0 ? '✓ VIABLE' : '✗ RACIONAM.'}</text>
+  <text x="630" y="95" text-anchor="middle" fill="${margen_disponible >= 0 ? '#0d9488' : '#c0392b'}" font-size="11">${margen_disponible.toFixed(2)} pp</text>
+  <text x="630" y="110" text-anchor="middle" fill="${margen_disponible >= 0 ? '#0d9488' : '#c0392b'}" font-size="8">margen disponible</text>
+  <line x1="550" y1="90" x2="570" y2="90" stroke="${margen_disponible >= 0 ? '#0d9488' : '#c0392b'}" stroke-width="2" marker-end="url(#arrow2)"/>
+  <!-- Defs -->
+  <defs>
+    <marker id="arrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6" fill="none" stroke="#b8860b" stroke-width="1.5"/>
+    </marker>
+    <marker id="arrow2" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6" fill="none" stroke="${margen_disponible >= 0 ? '#0d9488' : '#c0392b'}" stroke-width="1.5"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+`
+```
+
+## Tabla Comparativa Final: Banca CO vs Aave v3
+
+| Dimensión | Banca Colombiana (Consumo) | Aave v3 (DeFi) |
+|-----------|--------------------------|----------------|
+| **Techo de tasa** | ✅ Sí — Usura legal (25.52% EA) | ❌ No — mercado libre |
+| **Mecanismo de precio** | Regulatorio + competencia | Algorítmico (curva U) |
+| **Colateral requerido** | No (mayoría consumo) | Sí — overcollateralizado |
+| **Racionamiento** | Sí, a tasas de usura < costo | No — precio ajusta |
+| **Exclusión financiera** | Alta (segmentos altos riesgo) | N/A (solo cripto-colat.) |
+| **Spread LP-Borrow** | Costo de fondeo CDT | Reserve factor (~10%) |
+| **Transparencia** | Parcial — datos Superfinanciera | Total — on-chain |
+| **Riesgo de default** | Absorbido por banco (provisiones) | Liquidación automática |
+
+: Comparativo estructural. {#tbl-comparativo}
+
+## Conclusiones del Modelo
+
+::: {.callout-tip}
+## Hallazgos Principales
+
+**1. La usura comprime pero no elimina el racionamiento:** Con un Banrep en 10.25% y CDTs compitiendo a ~8.8%, el costo de fondeo efectivo para consumo es ~9.8% (ajustado por encaje). La tasa mínima de break-even sin mora alcanza ~16-17% EA. El espacio real de NIM positivo ajustado por riesgo es de apenas **1.5–3 pp** para cartera de calidad media, muy sensible a cambios en mora.
+
+**2. Circularidad del IBC genera inercia:** La usura del mes T depende de las tasas activas del mes T-1, creando una inercia que hace que la baja de tasas de política tarde 3–6 meses en transmitirse al techo, mientras los costos de fondeo (CDT) se ajustan más rápido.
+
+**3. Aave resuelve el problema de precio con liquidación, no con techo:** La curva de utilización de Aave con slope2 alto (80%+) actúa como disuasor de sobreendeudamiento. Sin embargo, requiere colateral cripto, excluyendo al consumidor sin activos digitales — exactamente la misma población que la usura pretende proteger.
+
+**4. Arbitraje potencial:** Un emisor de stablecoins colombianas que opte por protocolo DeFi de lending podría operar en el espacio intermedio: sin techo de usura si opera en blockchain, pero con riesgo de clasificación como captación masiva por la Superfinanciera (Circular 029/2014).
+:::
+
+---
+
+# Documentación de Widgets Interactivos {#sec-widgets}
+
+```{=html}
+<span class="section-tag sim">Documentación</span>
+```
+
+Esta sección documenta cada widget interactivo incluido en el documento para reproducibilidad y evaluación.
+
+## Widget 1 — Simulador de Cadena de Transmisión {#widget-transmision}
+
+**Ubicación:** @sec-transmision  
+**Tecnología:** Observable JS (OJS) nativo en Quarto  
+**Inputs:**
+
+| Slider | Variable OJS | Rango | Default |
+|--------|-------------|-------|---------|
+| Tasa Banrep | `banrep` | [5, 15] | 10.25% |
+| Prima fondeo | `delta_fondeo` | [0.5, 4.0] | 1.5 pp |
+| Prima riesgo | `delta_riesgo` | [1.0, 8.0] | 4.5 pp |
+| OPEX+ROE | `delta_opex` | [0.5, 4.0] | 2.8 pp |
+| Tasa Usura | `usura_slider` | [18, 32] | 25.52% |
+
+**Outputs reactivos:** TIBR estimada, tasa activa mínima, margen disponible, alerta de racionamiento, gráfico waterfall de componentes del spread.
+
+**Fórmula central:** $r_{\text{activa}} = r_{\text{Banrep}} + 0.10 + \delta_{\text{fondeo}} + \delta_{\text{riesgo}} + \delta_{\text{opex}}$; alerta si $r_{\text{activa}} > \text{Usura}$.
+
+## Widget 2 — Calculadora NIM {#widget-nim}
+
+**Ubicación:** @sec-nim  
+**Inputs:** tasa activa consumo, costo fondeo CDT, índice de mora, LGD, CIR  
+**Fórmula:** $\text{NIM}_{\text{adj}} = (r_{\text{activa}} - r_{\text{fondeo}}) - (\text{mora} \times \text{LGD}) - (\text{CIR} \times \text{NIM}_{\text{bruto}})$  
+**Outputs:** NIM bruto, costo de riesgo, OPEX implícito, NIM ajustado, ROE implícito, curva de sensibilidad por niveles de mora.
+
+## Widget 3 — Simulación de Portafolio {#widget-portafolio}
+
+**Ubicación:** @sec-portafolio  
+**Inputs:** Tasa de usura nueva, tasa CDT, encaje, tamaño portafolio  
+**Lógica:** Para cada segmento $s$, $r_{\text{eff},s} = \min(r_{\text{base},s}, \text{Usura})$; $\text{NIM}_s = r_{\text{eff},s} - r_{\text{fondeo}}(1+\text{encaje}) - \text{PD}_s \cdot \text{LGD}_s - \text{OPEX}$; segmento racionado si $\text{NIM}_s < 0$.  
+**Outputs:** NIM ponderado del portafolio, Δ NIM vs baseline 25.52%, ingresos anuales estimados, número de segmentos racionados, gráfico por segmento, curva NIM vs nivel de usura.
+
+## Widget 4 — Curva de Utilización Aave v3 {#widget-aave}
+
+**Ubicación:** @sec-defi  
+**Inputs:** $U_{\text{opt}}$, $r_{\text{base}}$, slope1, slope2, reserve factor  
+**Fórmula:** Implementación directa de @eq-aave-rate y @eq-aave-supply  
+**Outputs:** Curva borrow/supply vs utilización, superposición con líneas de usura CO y costo CDT, tabla comparativa en puntos clave de utilización, comparativo estructural Aave vs banca CO.
+
+## Reproducibilidad
+
+```{ojs}
+//| echo: true
+//| code-fold: false
+// Para reproducir: clonar el repo y ejecutar:
+// quarto render index.qmd
+// quarto preview index.qmd
+// quarto publish gh-pages
+// No se requieren dependencias adicionales: 
+// Observable JS corre en el navegador, sin Python/R.
+"Proyecto reproducible · Solo requiere Quarto >= 1.4"
+```
+
+---
+
+# Referencias {.unnumbered}
+
+::: {#refs}
+:::
+
+::: {.callout-note collapse="true"}
+## Fuentes de datos utilizadas
+
+- **Superfinanciera:** Tasas de interés activas y pasivas. Boletín mensual. [superfinanciera.gov.co](https://www.superfinanciera.gov.co)
+- **Banco de la República:** Tasas de política monetaria y TIBR. [banrep.gov.co](https://www.banrep.gov.co)
+- **Aave v3 Documentation:** Interest Rate Models. [docs.aave.com](https://docs.aave.com/developers/core-contracts/pool)
+- **Aave v3 Analytics:** Tasas actuales por pool. [app.aave.com](https://app.aave.com)
+- **Código Penal Colombiano:** Art. 305 — Delito de Usura. Ley 599 de 2000.
+- **Circular Básica Contable y Financiera:** Capítulo II Tasas de Interés. Superfinanciera.
+:::

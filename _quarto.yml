@@ -1,0 +1,42 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "La Trampa de la Tasa de Usura"
+  description: "Transmisión de tasas, NIM bancario y DeFi en Colombia — DeFi I, 2026"
+  navbar:
+    left:
+      - href: index.qmd
+        text: "📊 Análisis Principal"
+    right:
+      - icon: github
+        href: https://github.com/
+        text: "Repositorio"
+  page-footer:
+    left: "DeFi I · Universidad de los Andes · 2026"
+    right: "Joshua — Grupo Tasas"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    toc-depth: 3
+    toc-title: "Contenido"
+    toc-location: left
+    number-sections: true
+    code-fold: true
+    code-tools: true
+    code-summary: "Ver código"
+    highlight-style: github
+    fig-align: center
+    embed-resources: false
+    smooth-scroll: true
+    html-math-method: katex
+
+execute:
+  echo: true
+  warning: false
+  message: false
+  freeze: auto

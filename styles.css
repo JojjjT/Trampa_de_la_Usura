@@ -1,0 +1,224 @@
+/* ═══════════════════════════════════════════════════
+   LA TRAMPA DE LA TASA DE USURA — Estilos Personalizados
+   Aesthetic: Financial terminal meets academic rigor
+   ═══════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Barlow+Condensed:wght@300;600;700&display=swap');
+
+:root {
+  --usura-red: #c0392b;
+  --banrep-navy: #1a2744;
+  --defi-teal: #0d9488;
+  --gold: #b8860b;
+  --light-bg: #f8f6f0;
+  --card-bg: #ffffff;
+  --border: #d4cfc5;
+  --text-main: #1a1a1a;
+  --text-muted: #5a5a5a;
+  --mono: 'IBM Plex Mono', monospace;
+  --serif: 'Libre Baskerville', serif;
+  --condensed: 'Barlow Condensed', sans-serif;
+}
+
+/* ── Base ── */
+body {
+  font-family: var(--serif);
+  background: var(--light-bg);
+  color: var(--text-main);
+  line-height: 1.75;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--condensed);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--banrep-navy);
+}
+
+h1.title {
+  font-size: 2.8rem;
+  line-height: 1.1;
+  border-bottom: 4px solid var(--usura-red);
+  padding-bottom: 0.4em;
+  margin-bottom: 0.2em;
+}
+
+.subtitle {
+  font-family: var(--condensed);
+  font-weight: 300;
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+code, pre {
+  font-family: var(--mono) !important;
+  font-size: 0.85em;
+}
+
+/* ── Callout boxes ── */
+.callout {
+  border-radius: 2px;
+  border-left-width: 5px;
+}
+
+.callout-note {
+  border-left-color: var(--banrep-navy);
+  background: #eef1f8;
+}
+
+.callout-warning {
+  border-left-color: var(--usura-red);
+  background: #fdf0ef;
+}
+
+.callout-tip {
+  border-left-color: var(--defi-teal);
+  background: #effaf8;
+}
+
+/* ── Key metric cards ── */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.metric-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--banrep-navy);
+  padding: 1rem 1.2rem;
+  text-align: center;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.metric-card.red { border-top-color: var(--usura-red); }
+.metric-card.teal { border-top-color: var(--defi-teal); }
+.metric-card.gold { border-top-color: var(--gold); }
+
+.metric-card .label {
+  font-family: var(--condensed);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+
+.metric-card .value {
+  font-family: var(--mono);
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--banrep-navy);
+  line-height: 1;
+}
+
+.metric-card.red .value { color: var(--usura-red); }
+.metric-card.teal .value { color: var(--defi-teal); }
+.metric-card.gold .value { color: var(--gold); }
+
+.metric-card .sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  font-family: var(--condensed);
+}
+
+/* ── Section divider ── */
+.section-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.section-tag.macro { background: var(--banrep-navy); color: white; }
+.section-tag.banking { background: var(--gold); color: #1a1a1a; }
+.section-tag.defi { background: var(--defi-teal); color: white; }
+.section-tag.sim { background: var(--usura-red); color: white; }
+
+/* ── OJS widget containers ── */
+.ojs-widget-box {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.ojs-widget-box h4 {
+  margin-top: 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Table styling ── */
+table {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: var(--banrep-navy);
+  color: white;
+  padding: 0.5rem 0.8rem;
+  text-align: left;
+  font-weight: 600;
+  font-family: var(--condensed);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+}
+
+td {
+  padding: 0.45rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:nth-child(even) td { background: #f4f2ec; }
+tr:hover td { background: #eef1f8; }
+
+/* ── Sidebar TOC ── */
+.sidebar nav { font-family: var(--condensed); }
+.sidebar-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ── Equation highlight ── */
+.eq-box {
+  background: #eef1f8;
+  border-left: 4px solid var(--banrep-navy);
+  padding: 1rem 1.5rem;
+  margin: 1rem 0;
+  border-radius: 0 4px 4px 0;
+  overflow-x: auto;
+}
+
+/* ── Footer ── */
+.page-footer {
+  font-family: var(--condensed);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  border-top: 2px solid var(--border);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .metric-grid { grid-template-columns: repeat(2, 1fr); }
+  h1.title { font-size: 2rem; }
+}
