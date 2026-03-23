@@ -11,11 +11,11 @@ website:
         text: "📊 Análisis Principal"
     right:
       - icon: github
-        href: https://github.com/
+        href: https://github.com/JojjjT/Trampa_de_la_Usura/
         text: "Repositorio"
   page-footer:
-    left: "DeFi I · Universidad de los Andes · 2026"
-    right: "Joshua — Grupo Tasas"
+    left: "DeFi I · Externado de Colombia · 2026"
+    right: "Joshua Samad Trujillo Lagos"
 
 format:
   html:
